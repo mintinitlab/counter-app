@@ -38,8 +38,8 @@
 
   // 残り枚数を算出する
   function getRemainingCount(currentCount, monthlyLimit) {
-  return monthlyLimit - currentCount;
-}
+    return monthlyLimit - currentCount;
+  }
 
   // 履歴レコード用のID（簡易的な一意文字列）を生成する
   function generateId() {
@@ -94,6 +94,13 @@
 
   // カレンダー上で選択中の日付（カウント追加・調整の対象日）。初期値は「今日」
   let selectedDateKey = getTodayKey();
+
+  // カレンダーの表示基準月（この月と「前月」の2ヶ月分を表示する）
+  // day は常に1に固定しておく（setMonth() による月末日のオーバーフロー・ズレを防ぐため）
+  let calendarBase = (() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1, 12);
+  })();
 
   /* =========================================================
    * DOM参照
@@ -154,9 +161,9 @@
 
   // リセットボタン押下：確認ダイアログを表示するのみ（実際のリセットはconfirmResetで行う）
   function requestReset() {
-  console.log('reset clicked');
-  showResetDialog();
-}
+    console.log('reset clicked');
+    showResetDialog();
+  }
 
   // ダイアログで「リセットする」を選択した場合の処理
   function confirmReset() {
@@ -217,14 +224,14 @@
    * ========================================================= */
 
   function render() {
-  console.log('render start');
-  renderCount();
-  console.log('after count');
-  renderProgressBar();
-  console.log('after progress');
-  renderCalendar();
-  console.log('after calendar');
-}
+    console.log('render start');
+    renderCount();
+    console.log('after count');
+    renderProgressBar();
+    console.log('after progress');
+    renderCalendar();
+    console.log('after calendar');
+  }
 
   // 現在値・上限値・使用率の数値表示を更新する
   function renderCount() {
@@ -239,38 +246,35 @@
 
   // 進捗バーの幅と配色（通常／警告／上限超過）を更新する
   function renderProgressBar() {
-  const current = getCurrentCount(appData);
-  const limit = appData.monthlyLimit;
+    const current = getCurrentCount(appData);
+    const limit = appData.monthlyLimit;
 
-  const remaining = limit - current;
-  const rate = Math.min(Math.max((current / limit) * 100, 0), 100);
+    const remaining = limit - current;
+    const rate = Math.min(Math.max((current / limit) * 100, 0), 100);
 
-  els.progressFill.style.width = rate + '%';
+    els.progressFill.style.width = rate + '%';
 
-  els.progressFill.classList.remove('is-warning', 'is-over');
-  if (rate >= 100) {
-    els.progressFill.classList.add('is-over');
-  } else if (rate >= 80) {
-    els.progressFill.classList.add('is-warning');
+    els.progressFill.classList.remove('is-warning', 'is-over');
+    if (rate >= 100) {
+      els.progressFill.classList.add('is-over');
+    } else if (rate >= 80) {
+      els.progressFill.classList.add('is-warning');
+    }
+
+    els.usageRate.textContent = remaining;
   }
 
-  els.usageRate.textContent = remaining;
-}
-  
-  // 当月のカレンダーを生成し、#calendar に描画する
-  function renderCalendar() {
-    if (!els.calendar) return;
-
-    const dailyTotals = getDailyTotals(appData.records);
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0-indexed
-
+  // 指定した年・月（monthは0始まり）の日数と、1日の曜日（0=日 ... 6=土）を返す
+  function getMonthData(year, month) {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const startWeekday = new Date(year, month, 1).getDay(); // 0=日 ... 6=土
+    const startWeekday = new Date(year, month, 1).getDay();
+    return { daysInMonth, startWeekday };
+  }
 
-    const todayKey = getTodayKey();
+  // 1ヶ月分の日付セルHTMLを生成する
+  // ※ 元のrenderCalendar()にあった日付セル生成ロジックをそのまま関数化したもの（ロジックの変更なし）
+  function renderMonthCells(year, month, dailyTotals, todayKey) {
+    const { daysInMonth, startWeekday } = getMonthData(year, month);
 
     let html = '';
 
@@ -297,15 +301,62 @@
         '</div>';
     }
 
+    // 月末を7の倍数まで空セルで埋める
+    // → グリッドは7列固定のため、これをしないと次の月の1日が誤った曜日列から始まってしまう
+    const totalCells = startWeekday + daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for (let i = 0; i < trailing; i++) {
+      html += '<div class="calendar-cell calendar-cell--empty"></div>';
+    }
+
+    return html;
+  }
+
+  // calendarBaseの「前月」と「当月」の2ヶ月分カレンダーを生成し、#calendar に描画する
+  function renderCalendar() {
+    if (!els.calendar) return;
+
+    const dailyTotals = getDailyTotals(appData.records);
+    const todayKey = getTodayKey();
+
+    const baseYear = calendarBase.getFullYear();
+    const baseMonth = calendarBase.getMonth();
+
+    const prevRef = new Date(baseYear, baseMonth - 1, 1);
+
+    // 表示順：前月 → 当月
+    const months = [
+      { year: prevRef.getFullYear(), month: prevRef.getMonth() },
+      { year: baseYear, month: baseMonth }
+    ];
+
+    let html = '';
+    months.forEach((m) => {
+      html += renderMonthCells(m.year, m.month, dailyTotals, todayKey);
+    });
+
     els.calendar.innerHTML = html;
 
     if (els.calendarTitle) {
-      els.calendarTitle.textContent = year + '年' + (month + 1) + '月';
+      const first = months[0];
+      const last = months[months.length - 1];
+      els.calendarTitle.textContent =
+        first.year + '年' + (first.month + 1) + '月 - ' + last.year + '年' + (last.month + 1) + '月';
     }
 
     if (els.selectedDateLabel) {
       els.selectedDateLabel.textContent = '選択中の日付：' + selectedDateKey;
     }
+  }
+
+  /* =========================================================
+   * カレンダー：月移動
+   * ========================================================= */
+
+  // calendarBaseをoffsetヶ月分移動し、再描画する（+1で次の月、-1で前の月）
+  function shiftMonth(offset) {
+    calendarBase.setMonth(calendarBase.getMonth() + offset);
+    renderCalendar();
   }
 
   /* =========================================================
@@ -315,17 +366,17 @@
   let lastFocusedElement = null;
 
   function showResetDialog() {
-  lastFocusedElement = document.activeElement;
-  els.dialogOverlay.classList.add('is-open');
-  els.cancelResetBtn.focus();
-}
+    lastFocusedElement = document.activeElement;
+    els.dialogOverlay.classList.add('is-open');
+    els.cancelResetBtn.focus();
+  }
 
   function hideResetDialog() {
-  els.dialogOverlay.classList.remove('is-open');
-  if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-    lastFocusedElement.focus();
+    els.dialogOverlay.classList.remove('is-open');
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
   }
-}
 
   /* =========================================================
    * 初期化
@@ -360,6 +411,30 @@
       selectedDateKey = cell.dataset.date;
       renderCalendar();
     });
+
+    // カレンダーのスワイプ操作
+    // 右スワイプ → 前の月へ／左スワイプ → 次の月へ（外部ライブラリ不使用、判定は移動距離50px以上のみ）
+    let touchStartX = null;
+
+    els.calendar.addEventListener('touchstart', (event) => {
+      touchStartX = event.changedTouches[0].clientX;
+    }, { passive: true });
+
+    els.calendar.addEventListener('touchend', (event) => {
+      if (touchStartX === null) return;
+
+      const touchEndX = event.changedTouches[0].clientX;
+      const deltaX = touchEndX - touchStartX;
+      touchStartX = null;
+
+      if (Math.abs(deltaX) < 50) return; // 50px未満は誤操作防止のため無視
+
+      if (deltaX < 0) {
+        shiftMonth(1);  // 左スワイプ → 次の月
+      } else {
+        shiftMonth(-1); // 右スワイプ → 前の月
+      }
+    }, { passive: true });
 
     els.dialogOverlay.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
