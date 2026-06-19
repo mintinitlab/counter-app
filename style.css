@@ -450,10 +450,32 @@ body {
   }
 
   .calendar-amount {
-    font-size: 12px;
-  }
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.calendar-selected-label {
+  margin: 0 0 10px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-primary-dark);
+}
+
+.calendar-cell[data-date] {
+  cursor: pointer;
+}
+
+.calendar-cell.selected {
+  background: rgba(242, 169, 59, 0.28);
+  border-color: var(--color-amber);
+  border-width: 2px;
 }
 
 [hidden] {
   display: none !important;
+}
 }

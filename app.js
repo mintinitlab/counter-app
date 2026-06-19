@@ -48,11 +48,12 @@
   }
 
   // 新しい操作履歴をdata.recordsに追加する
-  function addRecord(data, type, amount) {
+  // dateKeyは呼び出し側が必ず指定する（このタイミングで日付の自動生成は行わない）
+  function addRecord(data, type, amount, dateKey) {
     const now = new Date();
     const record = {
       id: generateId(),
-      date: now.toISOString().slice(0, 10), // YYYY-MM-DD（将来のカレンダー集計用）
+      date: dateKey, // YYYY-MM-DD（呼び出し側が指定した対象日）
       timestamp: now.toISOString(),
       type, // 'increment' | 'decrement' | 'manual' | 'reset'
       amount
@@ -62,10 +63,18 @@
   }
 
   // 日付（Dateオブジェクト）を records[].date と同じ形式（YYYY-MM-DD）の文字列に変換する
-  // ※ record.date は addRecord 内で toISOString().slice(0, 10) によって生成されているため、
+  // ※ record.date はこの形式（toISOString().slice(0, 10)）で保存されるため、
   //   カレンダー側で日付キーを照合する際も同じ変換方式を用いて整合性を保つ
   function formatDateKey(date) {
     return date.toISOString().slice(0, 10);
+  }
+
+  // 「今日」の日付キー（YYYY-MM-DD）を取得する
+  // 正午（12:00）に固定して生成することで、タイムゾーンによる
+  // toISOString()変換時の日付ズレ（前日／翌日にずれる現象）を防ぐ
+  function getTodayKey() {
+    const now = new Date();
+    return formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12));
   }
 
   // recordsをdate単位で集計し、日付ごとの合計値マップを生成する
@@ -83,6 +92,9 @@
    * ========================================================= */
 
   let appData = loadData();
+
+  // カレンダー上で選択中の日付（カウント追加・調整の対象日）。初期値は「今日」
+  let selectedDateKey = getTodayKey();
 
   /* =========================================================
    * DOM参照
@@ -103,30 +115,31 @@
     cancelResetBtn: document.getElementById('cancelResetBtn'),
     confirmResetBtn: document.getElementById('confirmResetBtn'),
     calendar: document.getElementById('calendar'),
-    calendarTitle: document.getElementById('calendarTitle')
+    calendarTitle: document.getElementById('calendarTitle'),
+    selectedDateLabel: document.getElementById('selectedDateLabel')
   };
 
   /* =========================================================
    * 操作層
    * ========================================================= */
 
-  // +1
+  // +1（選択中の日付に対して加算）
   function increment() {
-    addRecord(appData, 'increment', 1);
+    addRecord(appData, 'increment', 1, selectedDateKey);
     saveData(appData);
     render();
   }
 
-  // -1（現在値が0以下のときは何もしない）
+  // -1（選択中の日付に対して減算。現在値が0以下のときは何もしない）
   function decrement() {
     const current = getCurrentCount(appData);
     if (current <= 0) return;
-    addRecord(appData, 'decrement', -1);
+    addRecord(appData, 'decrement', -1, selectedDateKey);
     saveData(appData);
     render();
   }
 
-  // 任意数追加
+  // 任意数追加（選択中の日付に対して加算）
   function addCustomAmount(rawValue) {
     const validation = validateCustomInput(rawValue);
     if (!validation.valid) {
@@ -134,7 +147,7 @@
       return;
     }
     hideInputError();
-    addRecord(appData, 'manual', validation.value);
+    addRecord(appData, 'manual', validation.value, selectedDateKey);
     saveData(appData);
     els.customAmount.value = '';
     render();
@@ -151,7 +164,8 @@
     const current = getCurrentCount(appData);
     if (current !== 0) {
       // 現在値を打ち消す負の値を記録することで、履歴を残したまま現在値を0にする
-      addRecord(appData, 'reset', -current);
+      // リセットは「現在の合計を打ち消す」操作のため、対象日は選択中の日付ではなく常に今日とする
+      addRecord(appData, 'reset', -current, getTodayKey());
       saveData(appData);
     }
     hideResetDialog();
@@ -249,9 +263,7 @@
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const startWeekday = new Date(year, month, 1).getDay(); // 0=日 ... 6=土
 
-    // 正午（12:00）に固定して日付を生成することで、タイムゾーンによる
-    // toISOString()変換時の日付ズレ（前日／翌日にずれる現象）を防ぐ
-    const todayKey = formatDateKey(new Date(year, now.getMonth(), now.getDate(), 12));
+    const todayKey = getTodayKey();
 
     let html = '';
 
@@ -265,9 +277,14 @@
       const dateKey = formatDateKey(cellDate);
       const total = dailyTotals[dateKey] || 0;
       const isToday = dateKey === todayKey;
+      const isSelected = dateKey === selectedDateKey;
+
+      let cellClass = 'calendar-cell';
+      if (isToday) cellClass += ' today';
+      if (isSelected) cellClass += ' selected';
 
       html +=
-        '<div class="calendar-cell' + (isToday ? ' today' : '') + '">' +
+        '<div class="' + cellClass + '" data-date="' + dateKey + '">' +
           '<span class="calendar-day">' + day + '</span>' +
           (total !== 0 ? '<span class="calendar-amount">' + total + '</span>' : '') +
         '</div>';
@@ -277,6 +294,10 @@
 
     if (els.calendarTitle) {
       els.calendarTitle.textContent = year + '年' + (month + 1) + '月';
+    }
+
+    if (els.selectedDateLabel) {
+      els.selectedDateLabel.textContent = '選択中の日付：' + selectedDateKey;
     }
   }
 
@@ -323,6 +344,15 @@
     els.resetBtn.addEventListener('click', requestReset);
     els.cancelResetBtn.addEventListener('click', cancelReset);
     els.confirmResetBtn.addEventListener('click', confirmReset);
+
+    // カレンダーの日付セルクリックで選択日付（selectedDateKey）を切り替える
+    // ※ 集計・現在値ロジックには影響しないため、再描画はrenderCalendar()のみで十分
+    els.calendar.addEventListener('click', (event) => {
+      const cell = event.target.closest('.calendar-cell[data-date]');
+      if (!cell) return;
+      selectedDateKey = cell.dataset.date;
+      renderCalendar();
+    });
 
     els.dialogOverlay.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
