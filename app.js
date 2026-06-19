@@ -61,6 +61,23 @@
     return data;
   }
 
+  // 日付（Dateオブジェクト）を records[].date と同じ形式（YYYY-MM-DD）の文字列に変換する
+  // ※ record.date は addRecord 内で toISOString().slice(0, 10) によって生成されているため、
+  //   カレンダー側で日付キーを照合する際も同じ変換方式を用いて整合性を保つ
+  function formatDateKey(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  // recordsをdate単位で集計し、日付ごとの合計値マップを生成する
+  // 例: { "2026-06-19": 3, "2026-06-20": 1 }
+  function getDailyTotals(records) {
+    const totals = {};
+    records.forEach((record) => {
+      totals[record.date] = (totals[record.date] || 0) + record.amount;
+    });
+    return totals;
+  }
+
   /* =========================================================
    * 状態
    * ========================================================= */
@@ -84,7 +101,9 @@
     resetBtn: document.getElementById('resetBtn'),
     dialogOverlay: document.getElementById('resetDialogOverlay'),
     cancelResetBtn: document.getElementById('cancelResetBtn'),
-    confirmResetBtn: document.getElementById('confirmResetBtn')
+    confirmResetBtn: document.getElementById('confirmResetBtn'),
+    calendar: document.getElementById('calendar'),
+    calendarTitle: document.getElementById('calendarTitle')
   };
 
   /* =========================================================
@@ -187,6 +206,7 @@
   function render() {
     renderCount();
     renderProgressBar();
+    renderCalendar();
   }
 
   // 現在値・上限値・使用率の数値表示を更新する
@@ -213,6 +233,50 @@
       els.progressFill.classList.add('is-over');
     } else if (rate >= 80) {
       els.progressFill.classList.add('is-warning');
+    }
+  }
+
+  // 当月のカレンダーを生成し、#calendar に描画する
+  function renderCalendar() {
+    if (!els.calendar) return;
+
+    const dailyTotals = getDailyTotals(appData.records);
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-indexed
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startWeekday = new Date(year, month, 1).getDay(); // 0=日 ... 6=土
+
+    // 正午（12:00）に固定して日付を生成することで、タイムゾーンによる
+    // toISOString()変換時の日付ズレ（前日／翌日にずれる現象）を防ぐ
+    const todayKey = formatDateKey(new Date(year, now.getMonth(), now.getDate(), 12));
+
+    let html = '';
+
+    // 1日が始まる曜日まで空セルを詰める
+    for (let i = 0; i < startWeekday; i++) {
+      html += '<div class="calendar-cell calendar-cell--empty"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cellDate = new Date(year, month, day, 12);
+      const dateKey = formatDateKey(cellDate);
+      const total = dailyTotals[dateKey] || 0;
+      const isToday = dateKey === todayKey;
+
+      html +=
+        '<div class="calendar-cell' + (isToday ? ' today' : '') + '">' +
+          '<span class="calendar-day">' + day + '</span>' +
+          (total !== 0 ? '<span class="calendar-amount">' + total + '</span>' : '') +
+        '</div>';
+    }
+
+    els.calendar.innerHTML = html;
+
+    if (els.calendarTitle) {
+      els.calendarTitle.textContent = year + '年' + (month + 1) + '月';
     }
   }
 

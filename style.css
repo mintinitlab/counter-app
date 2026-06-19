@@ -296,6 +296,80 @@ body {
   text-align: center;
 }
 
+/* ===== カレンダー ===== */
+.calendar-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #dde8ea;
+}
+
+.calendar-title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  text-align: center;
+  color: var(--color-ink);
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekdays {
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
+.calendar-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  background: #f7fafa;
+  border: 1px solid #e3edee;
+}
+
+.calendar-cell--empty {
+  background: transparent;
+  border: none;
+}
+
+.calendar-cell.today {
+  background: rgba(95, 201, 206, 0.25);
+  border-color: var(--color-primary);
+}
+
+.calendar-day {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-ink-soft);
+}
+
+.calendar-cell.today .calendar-day {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+.calendar-amount {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
 /* ===== リセット確認ダイアログ ===== */
 .dialog-overlay {
   position: fixed;
@@ -369,6 +443,14 @@ body {
     width: 64px;
     height: 64px;
     font-size: 18px;
+  }
+
+  .calendar-day {
+    font-size: 10px;
+  }
+
+  .calendar-amount {
+    font-size: 12px;
   }
 }
 
