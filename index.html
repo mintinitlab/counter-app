@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Counter</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow">Counter</p>
+    </header>
+
+    <main>
+      <!-- 現在値表示（円形のポートホール表示） -->
+      <section class="display-section" aria-live="polite">
+        <div class="porthole">
+          <span class="current-value" id="currentCount">0</span>
+          <span class="limit-label">/ <span id="monthlyLimit">240</span> 枚</span>
+        </div>
+      </section>
+
+      <!-- 進捗バー＋使用率表示 -->
+      <section class="progress-section">
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <p class="usage-rate"><span id="usageRate">0</span>% 使用</p>
+      </section>
+
+      <!-- +1 / -1 操作 -->
+      <section class="counter-controls">
+        <button type="button" id="decrementBtn" class="round-btn round-btn--minus" aria-label="1枚減らす">−1</button>
+        <button type="button" id="incrementBtn" class="round-btn round-btn--plus" aria-label="1枚増やす">+1</button>
+      </section>
+
+      <!-- 任意数追加 -->
+      <section class="custom-add">
+        <label for="customAmount" class="field-label">枚数を指定して追加</label>
+        <div class="custom-add__row">
+          <input
+            type="number"
+            id="customAmount"
+            inputmode="numeric"
+            min="1"
+            step="1"
+            placeholder="例：10"
+            aria-describedby="inputError"
+          >
+          <button type="button" id="addCustomBtn" class="btn btn--secondary">追加する</button>
+        </div>
+        <p id="inputError" class="error-message" role="alert" hidden></p>
+      </section>
+
+      <!-- リセット -->
+      <section class="reset-section">
+        <button type="button" id="resetBtn" class="btn btn--ghost">カウントをリセット</button>
+      </section>
+    </main>
+  </div>
+
+  <!-- リセット確認ダイアログ -->
+  <div class="dialog-overlay" id="resetDialogOverlay">
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogDesc">
+      <h2 id="dialogTitle">カウントをリセット</h2>
+      <p id="dialogDesc">現在の枚数を0に戻します。この操作は取り消せません。よろしいですか？</p>
+      <div class="dialog-actions">
+        <button type="button" id="cancelResetBtn" class="btn btn--secondary">キャンセル</button>
+        <button type="button" id="confirmResetBtn" class="btn btn--danger">リセットする</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
