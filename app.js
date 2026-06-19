@@ -36,11 +36,10 @@
     return data.records.reduce((sum, record) => sum + record.amount, 0);
   }
 
-  // 使用率（%）を算出する
-  function calcUsageRate(currentCount, monthlyLimit) {
-    if (!monthlyLimit) return 0;
-    return Math.round((currentCount / monthlyLimit) * 100);
-  }
+  // 残り枚数を算出する
+  function getRemainingCount(currentCount, monthlyLimit) {
+  return monthlyLimit - currentCount;
+}
 
   // 履歴レコード用のID（簡易的な一意文字列）を生成する
   function generateId() {
@@ -218,38 +217,46 @@
    * ========================================================= */
 
   function render() {
-    renderCount();
-    renderProgressBar();
-    renderCalendar();
-  }
+  console.log('render start');
+  renderCount();
+  console.log('after count');
+  renderProgressBar();
+  console.log('after progress');
+  renderCalendar();
+  console.log('after calendar');
+}
 
   // 現在値・上限値・使用率の数値表示を更新する
   function renderCount() {
     const current = getCurrentCount(appData);
-    const rate = calcUsageRate(current, appData.monthlyLimit);
+    const remaining = getRemainingCount(current, appData.monthlyLimit);
 
     els.currentCount.textContent = current;
     els.monthlyLimit.textContent = appData.monthlyLimit;
-    els.usageRate.textContent = rate;
+    els.usageRate.textContent = remaining;
     els.decrementBtn.disabled = current <= 0;
   }
 
   // 進捗バーの幅と配色（通常／警告／上限超過）を更新する
   function renderProgressBar() {
-    const current = getCurrentCount(appData);
-    const rate = calcUsageRate(current, appData.monthlyLimit);
-    const visualWidth = Math.min(Math.max(rate, 0), 100);
+  const current = getCurrentCount(appData);
+  const limit = appData.monthlyLimit;
 
-    els.progressFill.style.width = visualWidth + '%';
+  const remaining = limit - current;
+  const rate = Math.min(Math.max((current / limit) * 100, 0), 100);
 
-    els.progressFill.classList.remove('is-warning', 'is-over');
-    if (rate >= 100) {
-      els.progressFill.classList.add('is-over');
-    } else if (rate >= 80) {
-      els.progressFill.classList.add('is-warning');
-    }
+  els.progressFill.style.width = rate + '%';
+
+  els.progressFill.classList.remove('is-warning', 'is-over');
+  if (rate >= 100) {
+    els.progressFill.classList.add('is-over');
+  } else if (rate >= 80) {
+    els.progressFill.classList.add('is-warning');
   }
 
+  els.usageRate.textContent = remaining;
+}
+  
   // 当月のカレンダーを生成し、#calendar に描画する
   function renderCalendar() {
     if (!els.calendar) return;
