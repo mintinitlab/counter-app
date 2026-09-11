@@ -77,7 +77,7 @@
   }
 
   // recordsをdate単位で集計し、日付ごとの合計値マップを生成する
-  // ※ 'reset'（リセット時の相殺記録）はカレンダー表示上の「使用量」ではないため集計から除外する
+  // ※ 'reset'（リセット時の相殺記録）はカレンダー表示上の「使用量」ではないため集計から除外
   function getDailyTotals(records) {
     const totals = {};
     records.forEach((record) => {
