@@ -77,14 +77,15 @@
   }
 
   // recordsをdate単位で集計し、日付ごとの合計値マップを生成する
-  // 例: { "2026-06-19": 3, "2026-06-20": 1 }
+  // ※ 'reset'（リセット時の相殺記録）はカレンダー表示上の「使用量」ではないため集計から除外する
   function getDailyTotals(records) {
     const totals = {};
     records.forEach((record) => {
+      if (record.type === 'reset') return;
       totals[record.date] = (totals[record.date] || 0) + record.amount;
     });
     return totals;
-  }
+  } 
 
   /* =========================================================
    * 状態
